@@ -8,6 +8,7 @@ namespace ContosoUniversity.Models
         // Primary key column, by default : ID or classnameID
         public int ID { get; set; }
         public string LastName { get; set; }
+        public string Email { get; set; }
         public string FirstMidName { get; set; }
         public DateTime EnrollmentDate { get; set; }
 

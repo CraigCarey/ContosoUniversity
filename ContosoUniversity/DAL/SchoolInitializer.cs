@@ -7,6 +7,7 @@ using ContosoUniversity.Models;
 
 namespace ContosoUniversity.DAL
 {
+    // DB will be automatically recreated to match changes in the referenced Models
     public class SchoolInitializer : System.Data.Entity.DropCreateDatabaseIfModelChanges<SchoolContext>
     {
         // To tell Entity Framework to use this initializer class, add an element to the entityFramework element in the application Web.config file
