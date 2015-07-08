@@ -43,24 +43,37 @@ namespace ContosoUniversity.Controllers
             return View();
         }
 
-        // POST: Student/Create
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
+        // GET: Student/Create
+        // ID removed from the Bind attribute for the scaffolded method, as it is set automatically by SQL Server
+        // The Bind attribute is one way to protect against over-posting, by limiting the fields that the form can access
+        // It's a security best practice to use the Include parameter with the Bind attribute to whitelist fields
+        // adds the Student entity created by the ASP.NET MVC model binder to the Students entity set and then saves the changes to the database
+        // ValidateAntiForgeryToken used to prevent XSRF attacks
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,LastName,FirstMidName,EnrollmentDate")] Student student)
+        public ActionResult Create([Bind(Include = "LastName, FirstMidName, EnrollmentDate")]Student student)
         {
-            if (ModelState.IsValid)
+            try
             {
-                db.Students.Add(student);
-                db.SaveChanges();
-                return RedirectToAction("Index");
+                // performs server side data validation (e.g. checks dates are valid)
+                if (ModelState.IsValid)
+                {
+                    db.Students.Add(student);
+                    db.SaveChanges();
+                    return RedirectToAction("Index");
+                }
             }
-
+            catch (DataException /* dex */)
+            {
+                //Log the error (uncomment dex variable name and add a line here to write a log.
+                ModelState.AddModelError("", "Unable to save changes. Try again, and if the problem persists see your system administrator.");
+            }
             return View(student);
         }
 
         // GET: Student/Edit/5
+        // HttpGet is unecessary, as it is default
+        //[HttpGet]
         public ActionResult Edit(int? id)
         {
             if (id == null)
@@ -78,45 +91,80 @@ namespace ContosoUniversity.Controllers
         // POST: Student/Edit/5
         // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
         // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
+        [HttpPost, ActionName("Edit")]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,LastName,FirstMidName,EnrollmentDate")] Student student)
-        {
-            if (ModelState.IsValid)
-            {
-                db.Entry(student).State = EntityState.Modified;
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
-            return View(student);
-        }
-
-        // GET: Student/Delete/5
-        public ActionResult Delete(int? id)
+        public ActionResult EditPost(int? id)   // renamed from Edit() as has the same signature as the HttpGet Edit method
         {
             if (id == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
+            var studentToUpdate = db.Students.Find(id);
+            if (TryUpdateModel(studentToUpdate, "", new string[] { "LastName", "FirstMidName", "EnrollmentDate" }))
+            {
+                try
+                {
+                    db.SaveChanges();
+
+                    return RedirectToAction("Index");
+                }
+                catch (DataException /* dex */)
+                {
+                    //Log the error (uncomment dex variable name and add a line here to write a log.
+                    ModelState.AddModelError("", "Unable to save changes. Try again, and if the problem persists, see your system administrator.");
+                }
+            }
+            return View(studentToUpdate);
+        }
+
+        // GET: Student/Delete/5
+        // saveChangesError indicates whether the method was called after a failure to save changes
+        public ActionResult Delete(int? id, bool? saveChangesError = false)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+
+            if (saveChangesError.GetValueOrDefault())
+            {
+                ViewBag.ErrorMessage = "Delete failed. Try again, and if the problem persists see your system administrator.";
+            }
+
             Student student = db.Students.Find(id);
+
             if (student == null)
             {
                 return HttpNotFound();
             }
+
             return View(student);
         }
 
         // POST: Student/Delete/5
-        [HttpPost, ActionName("Delete")]
+        [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult DeleteConfirmed(int id)
+        public ActionResult Delete(int id)
         {
-            Student student = db.Students.Find(id);
-            db.Students.Remove(student);
-            db.SaveChanges();
+            try
+            {
+                Student student = db.Students.Find(id);
+                db.Students.Remove(student);
+                // alternatively, for high performance applications
+                //Student studentToDelete = new Student() { ID = id };
+                //db.Entry(studentToDelete).State = EntityState.Deleted;
+                db.SaveChanges();
+            }
+            catch (DataException/* dex */)
+            {
+                //Log the error (uncomment dex variable name and add a line here to write a log.
+                return RedirectToAction("Delete", new { id = id, saveChangesError = true });
+            }
             return RedirectToAction("Index");
         }
 
+        // Dispose of the db context instance to close db connections and free up resources
+        // The base Controller class already implements the IDisposable interface, so here we override
         protected override void Dispose(bool disposing)
         {
             if (disposing)
