@@ -8,6 +8,7 @@ using System.Web;
 using System.Web.Mvc;
 using ContosoUniversity.DAL;
 using ContosoUniversity.Models;
+using PagedList;
 
 namespace ContosoUniversity.Controllers
 {
@@ -20,12 +21,27 @@ namespace ContosoUniversity.Controllers
         // sortOrder parameter from the query string in the URL, either "Name" or "Date"
         // optionally followed by an underscore and the string "desc" to specify descending order
         // search string obtained from a textbox on the Student Index view
-        public ActionResult Index(string sortOrder, string searchString)
+        public ViewResult Index(string sortOrder, string currentFilter, string searchString, int? page)
         {
             // default sort order is name descending
             // ternary statements: if sortOrder is null or empty, ViewBag.NameSortParm should be set to "name_desc", otherwise ""
+            // sortOrder included in the paging links to keep the sort order the same while paging
+            ViewBag.CurrentSort = sortOrder;
             ViewBag.NameSortParm = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
             ViewBag.DateSortParm = sortOrder == "date" ? "date_desc" : "date";
+
+            if (searchString != null)
+            {
+                page = 1;
+            }
+            else
+            {
+                // current filter string included in the paging links to maintain the filter settings during paging,
+                // and restored to text box when the page is redisplayed
+                searchString = currentFilter;
+            }
+
+            ViewBag.CurrentFilter = searchString;
 
             // Uses LINQ to entities to create an IQueryable variable
             var students = from s in db.Students
@@ -52,8 +68,14 @@ namespace ContosoUniversity.Controllers
                     students = students.OrderBy(s => s.LastName);
                     break;
             }
-            
-            return View(students.ToList());
+
+            int pageSize = 3;                                           // number of results per page
+            //  ?? - null-coalescing operator. Returns left-hand operand if not null; otherwise returns right hand
+            int pageNumber = (page ?? 1);                               // current page number, 1 by default
+
+            // ToPagedList, an extension method on the students IQueryable object converts the student query to
+            // a single page of students in a collection type that supports paging, then returns as a view
+            return View(students.ToPagedList(pageNumber, pageSize));    // return current page of results
         }
 
         // GET: Student/Details/5
