@@ -17,9 +17,43 @@ namespace ContosoUniversity.Controllers
         private SchoolContext db = new SchoolContext();
 
         // GET: Student
-        public ActionResult Index()
+        // sortOrder parameter from the query string in the URL, either "Name" or "Date"
+        // optionally followed by an underscore and the string "desc" to specify descending order
+        // search string obtained from a textbox on the Student Index view
+        public ActionResult Index(string sortOrder, string searchString)
         {
-            return View(db.Students.ToList());
+            // default sort order is name descending
+            // ternary statements: if sortOrder is null or empty, ViewBag.NameSortParm should be set to "name_desc", otherwise ""
+            ViewBag.NameSortParm = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewBag.DateSortParm = sortOrder == "date" ? "date_desc" : "date";
+
+            // Uses LINQ to entities to create an IQueryable variable
+            var students = from s in db.Students
+                           select s;
+
+            // apply search term to first and last name
+            if (!String.IsNullOrEmpty(searchString))
+            {
+                students = students.Where(s => s.LastName.Contains(searchString) || s.FirstMidName.Contains(searchString));
+            }
+            
+            switch (sortOrder)
+            {
+                case "name_desc":
+                    students = students.OrderByDescending(s => s.LastName);
+                    break;
+                case "date":
+                    students = students.OrderBy(s => s.EnrollmentDate);
+                    break;
+                case "date_desc":
+                    students = students.OrderByDescending(s => s.EnrollmentDate);
+                    break;
+                default:
+                    students = students.OrderBy(s => s.LastName);
+                    break;
+            }
+            
+            return View(students.ToList());
         }
 
         // GET: Student/Details/5
